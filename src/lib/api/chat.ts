@@ -115,7 +115,7 @@ const fallbackSendMessage = async (agentId: string, content: string): Promise<Me
     return {
       id: `msg-${Date.now()}-assistant`,
       role: 'assistant',
-      content: `Es tut mir leid, ich konnte keine Antwort generieren. Fehler: ${error.message}`,
+      content: `Es tut mir leid, ich konnte keine Antwort generieren. Fehler: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`,
       timestamp: new Date()
     };
   }
@@ -205,7 +205,7 @@ const callGeminiAPI = async (prompt: string, userMessage: string, agent: Agent):
     return generatedText;
   } catch (error) {
     console.error('Error calling Gemini API:', error);
-    return `Es tut mir leid, ich konnte keine Antwort generieren. Fehler: ${error.message}`;
+    return `Es tut mir leid, ich konnte keine Antwort generieren. Fehler: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`;
   }
 };
 
