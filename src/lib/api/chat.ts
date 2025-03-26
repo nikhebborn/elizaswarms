@@ -2,8 +2,18 @@ import axios from 'axios';
 import { Agent, Knowledge, Message } from '../types/agent';
 
 // ELIZA API configuration
-const ELIZA_API_BASE_URL = process.env.NEXT_PUBLIC_ELIZA_API_URL || 'https://api.eliza.how';
+const ELIZA_API_BASE_URL = process.env.NEXT_PUBLIC_ELIZA_API_URL || 'http://localhost:8000';
 const ELIZA_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY; // Using the same key for now
+
+// Error messages
+const ERROR_MESSAGES = {
+  API_UNREACHABLE: 'Die ELIZA API ist derzeit nicht erreichbar. Bitte versuchen Sie es später erneut.',
+  NETWORK_ERROR: 'Es ist ein Netzwerkfehler aufgetreten. Bitte überprüfen Sie Ihre Internetverbindung.',
+  AUTHENTICATION_ERROR: 'Authentifizierungsfehler. Bitte überprüfen Sie Ihren API-Schlüssel.',
+  NOT_FOUND: 'Die angeforderte Ressource wurde nicht gefunden.',
+  SERVER_ERROR: 'Es ist ein Serverfehler aufgetreten. Bitte versuchen Sie es später erneut.',
+  UNKNOWN_ERROR: 'Ein unbekannter Fehler ist aufgetreten.'
+};
 
 // Helper function for API calls
 const elizaApiClient = axios.create({
@@ -11,8 +21,35 @@ const elizaApiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${ELIZA_API_KEY}`
-  }
+  },
+  timeout: 10000 // 10 seconds timeout
 });
+
+// Helper function to get error message based on error type
+const getErrorMessage = (error: any): string => {
+  if (!error.response) {
+    // Network error or API unreachable
+    return error.code === 'ECONNABORTED' 
+      ? ERROR_MESSAGES.API_UNREACHABLE 
+      : ERROR_MESSAGES.NETWORK_ERROR;
+  }
+  
+  // Handle different HTTP status codes
+  switch (error.response.status) {
+    case 401:
+    case 403:
+      return ERROR_MESSAGES.AUTHENTICATION_ERROR;
+    case 404:
+      return ERROR_MESSAGES.NOT_FOUND;
+    case 500:
+    case 502:
+    case 503:
+    case 504:
+      return ERROR_MESSAGES.SERVER_ERROR;
+    default:
+      return `${ERROR_MESSAGES.UNKNOWN_ERROR} (Status: ${error.response.status})`;
+  }
+};
 
 // Store chats in memory for development fallback
 const mockChats: Record<string, Message[]> = {};
@@ -55,6 +92,10 @@ export const sendMessage = async (agentId: string, content: string): Promise<Mes
     return assistantMessage;
   } catch (error) {
     console.error(`Error sending message to agent ${agentId} with ELIZA API:`, error);
+    
+    // Get specific error message
+    const errorMessage = getErrorMessage(error);
+    console.warn(`ELIZA API Error: ${errorMessage}`);
     
     // Fallback to direct Gemini API implementation
     console.warn('Falling back to direct Gemini API implementation for sendMessage');
@@ -220,6 +261,10 @@ export const getMessages = async (agentId: string): Promise<Message[]> => {
   } catch (error) {
     console.error(`Error fetching messages for agent ${agentId} with ELIZA API:`, error);
     
+    // Get specific error message
+    const errorMessage = getErrorMessage(error);
+    console.warn(`ELIZA API Error: ${errorMessage}`);
+    
     // Fallback to mock implementation
     console.warn('Falling back to mock implementation for getMessages');
     return mockChats[agentId] || [];
@@ -236,6 +281,10 @@ export const clearChat = async (agentId: string): Promise<boolean> => {
     return true;
   } catch (error) {
     console.error(`Error clearing chat for agent ${agentId} with ELIZA API:`, error);
+    
+    // Get specific error message
+    const errorMessage = getErrorMessage(error);
+    console.warn(`ELIZA API Error: ${errorMessage}`);
     
     // Fallback to mock implementation
     console.warn('Falling back to mock implementation for clearChat');
@@ -281,6 +330,10 @@ const getAgent = async (id: string): Promise<Agent | undefined> => {
     return agent;
   } catch (error) {
     console.error(`Error fetching agent ${id} from ELIZA API:`, error);
+    
+    // Get specific error message
+    const errorMessage = getErrorMessage(error);
+    console.warn(`ELIZA API Error: ${errorMessage}`);
     
     // Fallback to mock implementation
     console.warn('Falling back to mock implementation for getAgent');
